@@ -1,0 +1,8 @@
+pypdf
+langchain
+langchain-chroma
+# chromadb # Vector storage
+pytest
+boto3
+langchain-groq
+python-dotenv
