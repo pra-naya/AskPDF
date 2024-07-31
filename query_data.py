@@ -5,6 +5,9 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_community.llms.ollama import Ollama
 from langchain_groq import ChatGroq
 import os
+from langchain.chains.conversational_retrieval.base import ConversationRetrievalChain
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import create_history_aware_retriever
 from dotenv import load_dotenv
 
 
@@ -28,36 +31,86 @@ def main():
     # Load environment variables from .env file.
     load_dotenv()
 
-    # Create CLI.
-    parser = argparse.ArgumentParser()
-    parser.add_argument("query_text", type=str, help="The query text.")
-    args = parser.parse_args()
-    query_text = args.query_text
-    query_rag(query_text)
+    chain = setup_conversation_chain()
+
+    while True:
+        query_text = input("Enter your question (or 'quit'to exit):")
+        if query_text.lower() == 'quit' :
+            break
+        response = query_rag(chain, query_text)
+        print(f"Response: {response['answer']}")
+        print(f"Sources: {response['source_documents']}")
 
 
-def query_rag(query_text: str):
-    # Prepare the DB.
+    # # Create CLI.
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("query_text", type=str, help="The query text.")
+    # args = parser.parse_args()
+    # query_text = args.query_text
+    # query_rag(query_text)
+
+def setup_conversation_chain():
     embedding_function = get_embedding_function()
     db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
+    
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    llm = ChatGroq(model="mixtral-8x7b-32768", api_key=groq_api_key)
+    
+    retriever = db.as_retriever(search_kwargs={"k": 5})
+    
+    memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True
+    )
+    
+    chain = ConversationRetrievalChain.from_llm(
+        llm=llm,
+        retriever=retriever,
+        memory=memory,
+        return_source_documents=True
+    )
+    
+    return chain
 
-    # Search the DB.
-    results = db.similarity_search_with_score(query_text, k=5)
+def query_rag(chain, query_text: str):
+    return chain({"question": query_text})
 
-    context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
-    prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-    prompt = prompt_template.format(context=context_text, question=query_text)
-    print(prompt)
+# def query_rag(query_text: str):
+#     # Prepare the DB.
+#     embedding_function = get_embedding_function()
+#     db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
 
-    # model = Ollama(model="phi3")
-    groq_api_key = os.getenv("OPENAI_API_KEY")
-    model = ChatGroq(model="mixtral-8x7b-32768", api_key=groq_api_key)
-    response_text = model.invoke(prompt)
+#     # Search the DB.
+#     results = db.similarity_search_with_score(query_text, k=5)
 
-    sources = [doc.metadata.get("id", None) for doc, _score in results]
-    formatted_response = f"Response: {response_text}\nSources: {sources}"
-    print(formatted_response)
-    return response_text
+#     context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
+#     prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
+#     prompt = prompt_template.format(context=context_text, question=query_text)
+#     print(prompt)
+
+#     # model = Ollama(model="phi3")
+#     groq_api_key = os.getenv("GROQ_API_KEY")
+#     model = ChatGroq(model="mixtral-8x7b-32768", api_key=groq_api_key)
+#     response_text = model.invoke(prompt)
+
+#     sources = [doc.metadata.get("id", None) for doc, _score in results]
+#     formatted_response = f"Response: {response_text}\nSources: {sources}"
+#     print(formatted_response)
+#     return response_text
+
+    # # Initialize the conversation chain.
+    # groq_api_key = os.getenv("GROQ_API_KEY")
+    # llm = ChatGroq(model="mixtral-8x7b-32768", api_key=groq_api_key)
+    # retriever = db.as_retriever()
+    # chain = ConversationRetrievalChain.from_llm_and_retriever(llm=llm, retriever=retriever, return_source_documents=True)
+
+    # # Generate the response.
+    # response = chain({"question": query_text})
+    # response_text = response['answer']
+    # sources = [doc.metadata.get("id", None) for doc in response['source_documents']]
+    # formatted_response = f"Response: {response_text}\nSources: {sources}"
+    # print(formatted_response)
+    # return response_text
 
 
 if __name__ == "__main__":
