@@ -1,17 +1,31 @@
+import os
+import sys
+from pathlib import Path
+
+# Set up Django environment
+current_dir = Path(__file__).resolve().parent
+project_root = current_dir.parent.parent
+sys.path.append(str(project_root))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_ask_pdf.settings")
+
+import django
+django.setup()
+
 import argparse
 # from langchain.vectorstores.chroma import Chroma
 from langchain_chroma import Chroma
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.llms.ollama import Ollama
 from langchain_groq import ChatGroq
-import os
+# import os
 from dotenv import load_dotenv
+from RAG.scripts.get_embedding_function import get_embedding_function
+import re
+
+from django.conf import settings
 
 
-
-from get_embedding_function import get_embedding_function
-
-CHROMA_PATH = "chroma"
+CHROMA_PATH = str(settings.BASE_DIR / 'chroma')
 
 PROMPT_TEMPLATE = """
 Answer the question based only on the following context:
@@ -57,7 +71,12 @@ def query_rag(query_text: str):
     sources = [doc.metadata.get("id", None) for doc, _score in results]
     formatted_response = f"Response: {response_text}\nSources: {sources}"
     print(formatted_response)
-    return response_text
+    return response_text.content
+
+def extract_content(response_text):
+    # Regular expression to extract the content
+    content_match = re.search(r"content='(.*?)' response_metadata=", response_text, re.DOTALL)
+    return content_match
 
 
 if __name__ == "__main__":

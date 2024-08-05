@@ -1,15 +1,34 @@
 import argparse
 import os
 import shutil
-from langchain.document_loaders.pdf import PyPDFDirectoryLoader
+from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 from get_embedding_function import get_embedding_function
-from langchain.vectorstores.chroma import Chroma
+# from langchain.vectorstores import Chroma
+from langchain_chroma import Chroma
+import django
+from django.conf import settings
+
+import sys
+import os
+from pathlib import Path
+
+# Set up Django environment
+current_dir = Path(__file__).resolve().parent
+project_root = current_dir.parent.parent
+sys.path.append(str(project_root))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_ask_pdf.settings")
+
+import django
+django.setup()
 
 
-CHROMA_PATH = "chroma"
-DATA_PATH = "data"
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_chatbot.settings')
+# django.setup()
+
+CHROMA_PATH = str(settings.BASE_DIR / 'chroma')
+DATA_PATH = str(settings.MEDIA_ROOT / 'pdfs')
 
 
 def main():
@@ -67,7 +86,7 @@ def add_to_chroma(chunks: list[Document]):
         print(f"👉 Adding new documents: {len(new_chunks)}")
         new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
         db.add_documents(new_chunks, ids=new_chunk_ids)
-        db.persist()
+        # db.persist()
     else:
         print("✅ No new documents to add")
 
