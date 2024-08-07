@@ -87,7 +87,25 @@ def register(request):
             return render(request, 'register.html', {'error_message': error_message})
     return render(request, 'register.html')
 
-
 def logout(request):
     auth.logout(request)
     return redirect('login')
+
+def home(request):
+    return render(request, 'home.html')
+
+def dashboard(request):
+    return render(request, 'dashboard.html')
+
+def chat(request):
+    return render(request, 'chat.html')
+
+
+from django.conf import settings
+from django.http import FileResponse, Http404
+def pdf_view(request, filename):
+    file_path = os.path.join(settings.MEDIA_ROOT, 'pdfs', filename)
+    if os.path.exists(file_path):
+        return FileResponse(open(file_path, 'rb'), content_type='application/pdf')
+    else:
+        raise Http404("File not found")

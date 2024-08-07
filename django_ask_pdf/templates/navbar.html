@@ -1,0 +1,47 @@
+{% load static %}
+
+<nav class="sticky h-14 inset-x-0 top-0 z-30 w-full border-b border-gray-200 bg-white/75 backdrop-blur-lg transition-all">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex h-14 items-center justify-between border-b border-zinc-200">
+            <a href="{#}" class="flex z-40 font-semibold">
+                <span>quill.</span>
+            </a>
+            
+            <!-- Mobile Nav (You'll need to implement this separately) -->
+            <div class="sm:hidden">
+                <!-- Add your mobile nav implementation here -->
+            </div>
+
+            <div class="hidden items-center space-x-4 sm:flex">
+                {% if not user.is_authenticated %}
+                    <a href="{#}" class="text-sm font-medium text-gray-500 hover:text-gray-900">
+                        Pricing
+                    </a>
+                    <a href="{% url 'login' %}" class="text-sm font-medium text-gray-500 hover:text-gray-900">
+                        Sign in
+                    </a>
+                    <a href="{% url 'register' %}" class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                        Get started
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-1.5 h-5 w-5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                    </a>
+                {% else %}
+                    <a href="{#}" class="text-sm font-medium text-gray-500 hover:text-gray-900">
+                        Dashboard
+                    </a>
+                    <!-- User Account Nav (You'll need to implement this) -->
+                    <div class="relative">
+                        <button type="button" class="flex items-center text-sm font-medium text-gray-500 hover:text-gray-900">
+                            {% if user.first_name and user.last_name %}
+                                {{ user.first_name }} {{ user.last_name }}
+                            {% else %}
+                                Your Account
+                            {% endif %}
+                            <!-- Add a dropdown arrow icon here if desired -->
+                        </button>
+                        <!-- Add dropdown menu items here -->
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
