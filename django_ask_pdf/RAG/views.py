@@ -5,13 +5,16 @@ import os
 
 from django.contrib import auth
 from django.contrib.auth.models import User
-from .models import Chat
+from .models import Chat, File
 import markdown
 from django.utils.safestring import mark_safe
 
 from django.utils import timezone
 
 from RAG.scripts.query_data import query_rag, extract_content
+
+from django.views.decorators.csrf import csrf_exempt
+from subprocess import call
 
 # os.environ['GROQ_API_KEY'] = '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'
 # groq_client = groq.Client() 
@@ -95,7 +98,10 @@ def home(request):
     return render(request, 'home.html')
 
 def dashboard(request):
-    return render(request, 'dashboard.html')
+    # Fetch all files associated with the logged-in user
+    files = File.objects.filter(user=request.user)
+
+    return render(request, 'dashboard.html', {'files': files})
 
 def chat(request):
     return render(request, 'chat.html')
@@ -109,3 +115,22 @@ def pdf_view(request, filename):
         return FileResponse(open(file_path, 'rb'), content_type='application/pdf')
     else:
         raise Http404("File not found")
+    
+@csrf_exempt
+def upload_file(request):
+    if request.method == 'POST' and request.FILES.get('pdf_file'):
+        pdf_file = request.FILES['pdf_file']
+
+        # Save the file
+        file = File.objects.create(user=request.user, file=pdf_file, name=pdf_file.name)
+
+        # Run populate_database.py
+        # To be changed later
+        import sys
+        python_executable = sys.executable
+        script_path = os.path.join(settings.BASE_DIR, 'RAG', 'scripts', 'populate_database.py')
+        call([python_executable, script_path, "--filename", str(pdf_file.name.replace(' ', '_'))])
+
+        return JsonResponse({'success': True, 'file_url': f'/dashboard'})
+
+    return JsonResponse({'success': False, 'error': 'Invalid request'})

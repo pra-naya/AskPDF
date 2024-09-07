@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 from langchain_community.document_loaders import PyPDFDirectoryLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 from get_embedding_function import get_embedding_function
@@ -29,6 +30,7 @@ django.setup()
 
 CHROMA_PATH = str(settings.BASE_DIR / 'chroma')
 DATA_PATH = str(settings.MEDIA_ROOT / 'pdfs')
+# DATA_PATH = str('D:\Deerwalk\SEM VI\Project II\project\AskPDF\django_ask_pdf\media\pdfs\Assignment_V_DS.pdf')
 
 
 def main():
@@ -36,41 +38,78 @@ def main():
     # Check if the database should be cleared (using the --clear flag).
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", action="store_true", help="Reset the database.")
+    parser.add_argument("--filename", type=str, required=True, help="Name of the pdf file.")
     args = parser.parse_args()
     if args.reset:
         print("✨ Clearing Database")
         clear_database()
+
+    print(args.filename)
+    # Add the file name to DATA_PATH
+    global DATA_PATH 
+    DATA_PATH = str(Path(DATA_PATH) / args.filename)
+    print(f"Processing file: {DATA_PATH}")
+    if not os.path.isfile(DATA_PATH):
+        print(f"Error: The file {DATA_PATH} does not exist or is not accessible.")
+    else:
+        print(f"The file {DATA_PATH} is accessible.")
 
     # Create (or update) the data store.
     documents = load_documents()
     chunks = split_documents(documents)
     add_to_chroma(chunks)
 
+# Using DirectoryLoader
+# def load_documents():
+#     print("Loading Documents")
+#     document_loader = PyPDFDirectoryLoader(DATA_PATH)
+#     return document_loader.load()
 
 def load_documents():
-    document_loader = PyPDFDirectoryLoader(DATA_PATH)
+    print("Loading Documents")
+    document_loader = PyPDFLoader(DATA_PATH)
     return document_loader.load()
 
+# # Verifying the fucntion is actually returning documents
+# def load_documents():
+#     print("Loading Documents")
+#     print(f"Processing file: {DATA_PATH}")
+#     document_loader = PyPDFLoader(DATA_PATH)
+#     documents = document_loader.load()
+#     print(f"Loaded {len(documents)} documents")
+#     for doc in documents:
+#         print(f"Document Metadata: {doc.metadata}, Content Length: {len(doc.page_content)}")
+#     return documents
 
 def split_documents(documents: list[Document]):
+    print("Splitting Documents")
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
         chunk_overlap=80,
         length_function=len,
         is_separator_regex=False,
     )
-    return text_splitter.split_documents(documents)
+    chunks = text_splitter.split_documents(documents)
+
+    print(f"Created {len(chunks)} chunks")
+    for chunk in chunks:
+        print(f"Chunk Metadata: {chunk.metadata}, Chunk Content Length: {len(chunk.page_content)}")
+
+    return chunks
 
 
 def add_to_chroma(chunks: list[Document]):
+    print("Loading Existing Database")
     # Load the existing database.
     db = Chroma(
         persist_directory=CHROMA_PATH, embedding_function=get_embedding_function()
     )
 
+    print("Calculating Page IDs")
     # Calculate Page IDs.
     chunks_with_ids = calculate_chunk_ids(chunks)
 
+    print("Adding/Updating Documents")
     # Add or Update the documents.
     existing_items = db.get(include=[])  # IDs are always included by default
     existing_ids = set(existing_items["ids"])
@@ -84,14 +123,23 @@ def add_to_chroma(chunks: list[Document]):
 
     if len(new_chunks):
         print(f"👉 Adding new documents: {len(new_chunks)}")
-        new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
-        db.add_documents(new_chunks, ids=new_chunk_ids)
-        # db.persist()
+        # new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
+        # db.add_documents(new_chunks, ids=new_chunk_ids)
+        # # db.persist()
+
+        # debug code
+        try:
+            new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
+            db.add_documents(new_chunks, ids=new_chunk_ids)
+            print("Documents added successfully.")
+        except Exception as e:
+            print(f"Error while adding documents: {e}")
     else:
         print("✅ No new documents to add")
 
 
 def calculate_chunk_ids(chunks):
+    print("Calculating Chunk IDs")
 
     # This will create IDs like "data/monopoly.pdf:6:2"
     # Page Source : Page Number : Chunk Index
@@ -116,6 +164,7 @@ def calculate_chunk_ids(chunks):
 
         # Add it to the page meta-data.
         chunk.metadata["id"] = chunk_id
+        print(f"id: {chunk.metadata['id']}")
 
     return chunks
 

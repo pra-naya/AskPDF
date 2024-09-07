@@ -10,4 +10,5 @@ urlpatterns = [
     path('dashboard', views.dashboard, name='dashboard'),
     path('chat', views.chat, name='chat'),
     path('pdf/<str:filename>/', views.pdf_view, name='pdf_view'),
+    path('upload', views.upload_file, name='upload_file'),
 ]
