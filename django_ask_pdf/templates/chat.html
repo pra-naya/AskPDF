@@ -5,6 +5,8 @@
 
 {% include 'navbar.html' %}
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js" integrity="sha512-lHibs5XrZL9hXP3Dhr/d2xJgPy91f2mhVAasrSbMkbmoTSm2Kz8DuSWszBLUg31v+BM6tSiHSqT72xwjaNvl0g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
 <div class='flex-1 justify-between flex flex-col h-[calc(100vh-3.5rem)]'>
     <div class='mx-auto w-full max-w-8xl grow lg:flex xl:px-2'>
       <!-- {/* Left sidebar & main wrapper */} -->
@@ -13,7 +15,8 @@
           <!-- {/* Main area */} -->
           <div>PdfRenderer</div>
           <!-- <PdfRenderer url={file.url} /> -->
-          <embed src="{% url 'pdf_view' 'monopoly.pdf' %}" width="100%" height="600px"></embed>
+          <!-- <embed src="{% url 'pdf_view' 'monopoly.pdf' %}" width="100%" height="600px"></embed> -->
+           <canvas id="pdf_canvas"></canvas>
 
         </div>
       </div>
@@ -24,4 +27,25 @@
       </div>
     </div>
 </div>
+
+<script>
+  pdfjsLib.getDocument('django_ask_pdf\\media\\pdfs\\monopoly.pdf');
+  console.log("This file has " + doc.pdfInfo.numPages + " pages");
+
+  doc.getPage(1).then(page => {
+    const myCanvas = document.getElementById('pdf_canvas');
+    const context = myCanvas.getContext('2d');
+
+    const viewport = page.getViewport(1);
+    myCanvas.width = viewport.width;
+    myCanvas.height = viewport.height;
+
+    page.render({
+      canvasContext: context,
+      viewport: viewport
+    })  
+  })
+</script>
+
+
 {% endblock %}
