@@ -163,3 +163,4 @@ cython_debug/
 
 chroma
 data/*
+media/pdfs
