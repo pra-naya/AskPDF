@@ -123,13 +123,14 @@ def upload_file(request):
 
         # Save the file
         file = File.objects.create(user=request.user, file=pdf_file, name=pdf_file.name)
+        print("Here")
 
         # Run populate_database.py
         # To be changed later
         import sys
         python_executable = sys.executable
         script_path = os.path.join(settings.BASE_DIR, 'RAG', 'scripts', 'populate_database.py')
-        call([python_executable, script_path, "--filename", str(pdf_file.name.replace(' ', '_'))])
+        call([python_executable, script_path, "--filename", f"{file.user.id}_{str(pdf_file.name.replace(' ', '_').replace('(', '').replace(')', ''))}", "--owner", str(file.user.id)])
 
         return JsonResponse({'success': True, 'file_url': f'/dashboard'})
 

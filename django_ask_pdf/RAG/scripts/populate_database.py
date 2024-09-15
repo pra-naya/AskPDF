@@ -30,29 +30,29 @@ django.setup()
 
 CHROMA_PATH = str(settings.BASE_DIR / 'chroma')
 DATA_PATH = str(settings.MEDIA_ROOT / 'pdfs')
-# DATA_PATH = str('D:\Deerwalk\SEM VI\Project II\project\AskPDF\django_ask_pdf\media\pdfs\Assignment_V_DS.pdf')
-
+owner = ""
 
 def main():
 
     # Check if the database should be cleared (using the --clear flag).
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", action="store_true", help="Reset the database.")
-    parser.add_argument("--filename", type=str, required=True, help="Name of the pdf file.")
+    parser.add_argument("--filename", type=str, required=True, help="Name of the file.")
+    parser.add_argument("--owner", type=str, help="Owner of the file")
     args = parser.parse_args()
     if args.reset:
         print("✨ Clearing Database")
         clear_database()
 
-    print(args.filename)
+    # print(args.filename)
+
     # Add the file name to DATA_PATH
     global DATA_PATH 
     DATA_PATH = str(Path(DATA_PATH) / args.filename)
-    print(f"Processing file: {DATA_PATH}")
-    if not os.path.isfile(DATA_PATH):
-        print(f"Error: The file {DATA_PATH} does not exist or is not accessible.")
-    else:
-        print(f"The file {DATA_PATH} is accessible.")
+
+    if args.owner:
+        global owner
+        owner = args.owner
 
     # Create (or update) the data store.
     documents = load_documents()
@@ -109,6 +109,8 @@ def add_to_chroma(chunks: list[Document]):
     # Calculate Page IDs.
     chunks_with_ids = calculate_chunk_ids(chunks)
 
+    chunks_with_ids = add_owner_to_metadata(chunks_with_ids)
+
     print("Adding/Updating Documents")
     # Add or Update the documents.
     existing_items = db.get(include=[])  # IDs are always included by default
@@ -164,10 +166,17 @@ def calculate_chunk_ids(chunks):
 
         # Add it to the page meta-data.
         chunk.metadata["id"] = chunk_id
-        print(f"id: {chunk.metadata['id']}")
+
 
     return chunks
 
+def add_owner_to_metadata(chunks):
+    for chunk in chunks:
+        chunk.metadata["owner"] = owner
+        print(f"owner: {chunk.metadata['owner']}")
+        print(f"id: {chunk.metadata['id']}")
+    
+    return chunks
 
 def clear_database():
     if os.path.exists(CHROMA_PATH):

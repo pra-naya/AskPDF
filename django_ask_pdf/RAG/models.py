@@ -1,10 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
+from RAG.scripts.file_upload import upload_location
 
 # Create your models here.
 class File(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    file = models.FileField(upload_to='pdfs/')
+    file = models.FileField(upload_to=upload_location)
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     chroma_id = models.CharField(max_length=255)
