@@ -132,6 +132,7 @@ def add_to_chroma(chunks: list[Document]):
         # debug code
         try:
             new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
+            print(f"New Chunk IDs: {new_chunk_ids}")  # Add this for debugging
             db.add_documents(new_chunks, ids=new_chunk_ids)
             print("Documents added successfully.")
         except Exception as e:

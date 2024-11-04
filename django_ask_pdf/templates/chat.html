@@ -3,49 +3,187 @@
 
 {% block content %}
 
-{% include 'navbar.html' %}
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js" integrity="sha512-lHibs5XrZL9hXP3Dhr/d2xJgPy91f2mhVAasrSbMkbmoTSm2Kz8DuSWszBLUg31v+BM6tSiHSqT72xwjaNvl0g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <div class='flex-1 justify-between flex flex-col h-[calc(100vh-3.5rem)]'>
     <div class='mx-auto w-full max-w-8xl grow lg:flex xl:px-2'>
-      <!-- {/* Left sidebar & main wrapper */} -->
-      <div class='flex-1 xl:flex'>
-        <div class='px-4 py-6 sm:px-6 lg:pl-8 xl:flex-1 xl:pl-6'>
-          <!-- {/* Main area */} -->
-          <div>PdfRenderer</div>
-          <!-- <PdfRenderer url={file.url} /> -->
-          <!-- <embed src="{% url 'pdf_view' 'monopoly.pdf' %}" width="100%" height="600px"></embed> -->
-           <canvas id="pdf_canvas"></canvas>
-
+        <!-- Left sidebar & main wrapper -->
+        <div class='flex-1 xl:flex'>
+            <div class='px-4 py-6 sm:px-6 lg:pl-8 xl:flex-1 xl:pl-6'>
+                <!-- Main area -->
+                <div>PdfRenderer</div>
+                <canvas id="pdf_canvas"></canvas>
+            </div>
         </div>
-      </div>
 
-      <div class='shrink-0 flex-[0.75] border-t border-gray-200 lg:w-96 lg:border-l lg:border-t-0'>
-        <!-- <ChatWrapper isSubscribed={plan.isSubscribed} fileId={file.id} /> -->
-         <div>ChatWrapper</div>
-      </div>
+        <div class='shrink-0 flex-[0.75] border-t border-gray-200 lg:w-96 lg:border-l lg:border-t-0'>
+            <!-- ChatWrapper -->
+            <div class="relative min-h-full bg-zinc-50 flex divide-y divide-zinc-200 flex-col justify-between gap-2">
+                <div class="flex-1 flex justify-center items-center flex-col mb-28">
+                    {% if is_loading %}
+                        <div class="flex flex-col items-center gap-2">
+                            <i class="fas fa-spinner fa-spin h-8 w-8 text-blue-500"></i>
+                            <h3 class="font-semibold text-xl">Loading...</h3>
+                            <p class="text-zinc-500 text-sm">We're preparing your PDF.</p>
+                        </div>
+                    {% elif status == 'PROCESSING' %}
+                        <div class="flex flex-col items-center gap-2">
+                            <i class="fas fa-spinner fa-spin h-8 w-8 text-blue-500"></i>
+                            <h3 class="font-semibold text-xl">Processing PDF...</h3>
+                            <p class="text-zinc-500 text-sm">This won't take long.</p>
+                        </div>
+                    {% elif status == 'FAILED' %}
+                        <div class="flex flex-col items-center gap-2">
+                            <i class="fas fa-times-circle h-8 w-8 text-red-500"></i>
+                            <h3 class="font-semibold text-xl">Too many pages in PDF</h3>
+                            <p class="text-zinc-500 text-sm">
+                                Your <span class="font-medium">{% if is_subscribed %}Pro{% else %}Free{% endif %}</span> plan supports up to 
+                                {% if is_subscribed %}{{ pro_plan_pages }}{% else %}{{ free_plan_pages }}{% endif %} pages per PDF.
+                            </p>
+                            <a href="{% url 'dashboard' %}" class="mt-4 px-4 py-2 bg-zinc-200 text-zinc-900 rounded-lg">
+                                <i class="fas fa-chevron-left h-3 w-3 mr-1.5"></i>
+                                Back
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="flex-1 justify-between flex flex-col mb-28">
+                            <div id="messages" class="flex max-h-[calc(100vh-3.5rem-7rem)] border-zinc-200 flex-1 flex-col-reverse gap-4 p-3 overflow-y-auto">
+                                {% for message in messages %}
+                                    <div class="flex items-end {% if message.is_user_message %}justify-end{% endif %}">
+                                        <div class="relative flex h-6 w-6 aspect-square items-center justify-center 
+                                                    {% if message.is_user_message %}
+                                                        order-2 bg-blue-600 rounded-sm
+                                                    {% else %}
+                                                        order-1 bg-zinc-800 rounded-sm
+                                                    {% endif %}
+                                                    {% if not message.is_next_message_same_person %}invisible{% endif %}">
+                                            {% if message.is_user_message %}
+                                                <i class="fas fa-user fill-zinc-200 text-zinc-200 h-3/4 w-3/4"></i>
+                                            {% else %}
+                                                <img src="{% static 'images/logo.svg' %}" class="fill-zinc-300 h-3/4 w-3/4" alt="AI">
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex flex-col space-y-2 text-base max-w-md mx-2 
+                                                    {% if message.is_user_message %}
+                                                        order-1 items-end
+                                                    {% else %}
+                                                        order-2 items-start
+                                                    {% endif %}">
+                                            <div class="px-4 py-2 rounded-lg inline-block
+                                                        {% if message.is_user_message %}
+                                                            bg-blue-600 text-white
+                                                        {% else %}
+                                                            bg-gray-200 text-gray-900
+                                                        {% endif %}
+                                                        {% if not message.is_next_message_same_person %}
+                                                            {% if message.is_user_message %}
+                                                                rounded-br-none
+                                                            {% else %}
+                                                                rounded-bl-none
+                                                            {% endif %}
+                                                        {% endif %}">
+                                                {{ message.text|safe }}
+                                                {% if message.id != 'loading-message' %}
+                                                    <div class="text-xs select-none mt-2 w-full text-right
+                                                                {% if message.is_user_message %}
+                                                                    text-blue-300
+                                                                {% else %}
+                                                                    text-zinc-500
+                                                                {% endif %}">
+                                                        {{ message.created_at|date:"H:i" }}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="absolute bottom-0 left-0 w-full">
+                    <div class="mx-2 flex flex-row gap-3 md:mx-4 md:last:mb-6 lg:mx-auto lg:max-w-2xl xl:max-w-3xl">
+                        <div class="relative flex h-full flex-1 items-stretch md:flex-col">
+                            <div class="relative flex flex-col w-full flex-grow p-4">
+                                <div class="relative">
+                                    <textarea id="chat-input"  placeholder="Enter your question..."
+                                              class=" resize-none pr-12 text-base py-3 scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-2 scrolling-touch"></textarea>
+                                            </div>
+                                            <button id="send-button" class="absolute bottom-2 right-2 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="send message">
+                                                <i class="fas fa-paper-plane h-4 w-4"></i>
+                                            </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-  pdfjsLib.getDocument('django_ask_pdf\\media\\pdfs\\monopoly.pdf');
-  console.log("This file has " + doc.pdfInfo.numPages + " pages");
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatInput = document.getElementById('chat-input');
+        const sendButton = document.getElementById('send-button');
+        const messagesContainer = document.getElementById('messages');
 
-  doc.getPage(1).then(page => {
-    const myCanvas = document.getElementById('pdf_canvas');
-    const context = myCanvas.getContext('2d');
+        function sendMessage() {
+            const message = chatInput.value.trim();
+            if (message) {
+                // Here you would typically send an AJAX request to your Django view
+                // For this example, we'll just append the message to the chat
+                const messageElement = document.createElement('div');
+                messageElement.innerHTML = `
+                    <div class="flex items-end justify-end">
+                        <div class="flex flex-col space-y-2 text-base max-w-md mx-2 order-1 items-end">
+                            <div class="px-4 py-2 rounded-lg inline-block bg-blue-600 text-white">
+                                ${message}
+                                <div class="text-xs select-none mt-2 w-full text-right text-blue-300">
+                                    ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative flex h-6 w-6 aspect-square items-center justify-center order-2 bg-blue-600 rounded-sm">
+                            <i class="fas fa-user fill-zinc-200 text-zinc-200 h-3/4 w-3/4"></i>
+                        </div>
+                    </div>
+                `;
+                messagesContainer.prepend(messageElement);
+                chatInput.value = '';
+            }
+        }
 
-    const viewport = page.getViewport(1);
-    myCanvas.width = viewport.width;
-    myCanvas.height = viewport.height;
+        sendButton.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+    });
 
-    page.render({
-      canvasContext: context,
-      viewport: viewport
-    })  
-  })
+    // PDF.js initialization
+    pdfjsLib.getDocument('django_ask_pdf\\media\\pdfs\\monopoly.pdf').promise.then(function(doc) {
+        console.log("This file has " + doc.numPages + " pages");
+
+        doc.getPage(1).then(function(page) {
+            var scale = 1.5;
+            var viewport = page.getViewport({scale: scale});
+
+            var canvas = document.getElementById('pdf_canvas');
+            var context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            var renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            page.render(renderContext);
+        });
+    });
 </script>
-
-
 {% endblock %}

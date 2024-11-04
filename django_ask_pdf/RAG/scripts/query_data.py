@@ -2,6 +2,8 @@ import os
 import sys
 from pathlib import Path
 
+from RAG.models import File
+
 # Set up Django environment
 current_dir = Path(__file__).resolve().parent
 project_root = current_dir.parent.parent
@@ -29,6 +31,7 @@ CHROMA_PATH = str(settings.BASE_DIR / 'chroma')
 
 PROMPT_TEMPLATE = """
 Answer the question based only on the following context:
+If the answer is not found in the context, respond with: 'There is no answer to the question in the provided context.'
 
 {context}
 
@@ -50,13 +53,19 @@ def main():
     query_rag(query_text)
 
 
-def query_rag(query_text: str):
+def query_rag(query_text: str, file: File, user_id: int):
     # Prepare the DB.
     embedding_function = get_embedding_function()
     db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
 
+    # Create a filter to set the scope of data to search
+    filter_condition = {
+        # "owner": user_id,
+        "source": file.file.path
+    }
+
     # Search the DB.
-    results = db.similarity_search_with_score(query_text, k=5)
+    results = db.similarity_search_with_score(query_text, k=5, filter=filter_condition)
 
     context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
     prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
@@ -73,10 +82,10 @@ def query_rag(query_text: str):
     print(formatted_response)
     return response_text.content
 
-def extract_content(response_text):
-    # Regular expression to extract the content
-    content_match = re.search(r"content='(.*?)' response_metadata=", response_text, re.DOTALL)
-    return content_match
+# def extract_content(response_text):
+#     # Regular expression to extract the content
+#     content_match = re.search(r"content='(.*?)' response_metadata=", response_text, re.DOTALL)
+#     return content_match
 
 
 if __name__ == "__main__":

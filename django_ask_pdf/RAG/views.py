@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 import groq
 import os
@@ -11,7 +12,7 @@ from django.utils.safestring import mark_safe
 
 from django.utils import timezone
 
-from RAG.scripts.query_data import query_rag, extract_content
+from RAG.scripts.query_data import query_rag
 
 from django.views.decorators.csrf import csrf_exempt
 from subprocess import call
@@ -28,14 +29,17 @@ from subprocess import call
 #     return answer
 
 # Create your views here.
-def chatbot(request):
-    chats = Chat.objects.filter(user=request.user)
+def chatbot(request, file_id):
+    file = File.objects.get(id=file_id)
+
+    chats = Chat.objects.filter(user=request.user, file=file)
 
     if request.method == 'POST':
         message = request.POST.get('message')
         # response = ask_groq(message)
         # response = 'Hello, ' + request.user.username
-        response = query_rag(message)
+
+        response = query_rag(query_text=message, file=file, user_id=request.user.id)
         # response = extract_content(response)
         print (response)
 
@@ -47,13 +51,13 @@ def chatbot(request):
 
 
         if response is not None:
-            chat = Chat(user=request.user, message=message, response=response, created_at=timezone.now())
+            chat = Chat(user=request.user, file=file, message=message, response=response, created_at=timezone.now())
             chat.save()
             return JsonResponse({'message': message, 'response': response})
         else:
             print("no response")
 
-    return render(request, 'chatbot.html', {'chats': chats})
+    return render(request, 'chat1.html', {'chats': chats, 'file_url': f'/media/{file.file.name}', 'file_name': file.name})
 
 def login(request):
     if request.method == 'POST':
@@ -62,7 +66,7 @@ def login(request):
         user = auth.authenticate(request, username=username, password=password)
         if user is not None:
             auth.login(request, user)
-            return redirect('chatbot')
+            return redirect('dashboard')
         else:
             error_message = 'Invalid username or password'
             return render(request, 'login.html', {'error_message': error_message})
@@ -81,7 +85,7 @@ def register(request):
                 user = User.objects.create_user(username, email, password1)
                 user.save()
                 auth.login(request, user)
-                return redirect('chatbot')
+                return redirect('dashboard')
             except:
                 error_message = 'Error creating account'
                 return render(request, 'register.html', {'error_message': error_message})
@@ -97,6 +101,7 @@ def logout(request):
 def home(request):
     return render(request, 'home.html')
 
+@login_required
 def dashboard(request):
     # Fetch all files associated with the logged-in user
     files = File.objects.filter(user=request.user)
@@ -104,7 +109,7 @@ def dashboard(request):
     return render(request, 'dashboard.html', {'files': files})
 
 def chat(request):
-    return render(request, 'chat.html')
+    return render(request, 'chat1.html')
 
 
 from django.conf import settings
@@ -135,3 +140,8 @@ def upload_file(request):
         return JsonResponse({'success': True, 'file_url': f'/dashboard'})
 
     return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+def delete(request, file_id):
+    file = File.objects.get(id=file_id)
+    file.delete()
+    request.redirect(dashboard)
